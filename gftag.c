@@ -25,6 +25,8 @@ SPICEDOUBLE_CELL (cnfine, MAXWIN);
 SPICEDOUBLE_CELL (result, MAXWIN);
 SpiceDouble et2[2];
 
+SpiceChar sTDB[SHORTLEN];
+
 SpiceChar k2l[LONGLEN];
 SpiceChar normalsFITS[LONGLEN];
 SpiceChar lmpoolString[LONGLEN];
@@ -152,7 +154,9 @@ pGFTRN pGftRn = 0;
     }
     if (doDebug) { fprintf(stdout,"Target [%s] is body ID %ld\n", target, (long)targetId); }
 
-    /* Build unit sphere to override any ellipsoid */
+    /* Build in-memory string to define a unit sphere shape model for the body,
+     * to override any ellipsoid model that might have been already loaded via a PCK
+     */
     repmi_c("BODY#_RADII = ( 1.0 1.0 1.0 )","#",targetId,LONGLEN,lmpoolString);
     lmpool_c(lmpoolString,LONGLEN,1);
     if (failed_c()) {
@@ -161,29 +165,61 @@ pGFTRN pGftRn = 0;
     }
     if (doDebug) { fprintf(stdout,"Loaded unit sphere radii [%s]\n", lmpoolString); }
 
+    /* Loop over rows in the normal vectors table of the FITS file */
     for (iRow=0; iRow<nRows; ++iRow) {
-      copy_c(&cnfine0,&cnfine);
+
+      /* Initialize cnfine from cnfine0 */
       if (gftag_normals_next(pGftRn,&iFacetNumber,dVNormal)) {
         fprintf(stderr,"Failed to get facet number or normal for row [%lld]\n", iRow+1);
         break;
       }
 
-      /* Surface point on unit sphere is identical to unit normal vector at that point */
+      /* Get the surface point for this normal
+       * - on a unit sphere, spoint is identical to unit normal vector at that point
+       */
       vpack_c(dVNormal[0],dVNormal[1],dVNormal[2],spoint);
       vhat_c(spoint,spoint);
 
-      /* Find time(s) at which incidence angle matches that in refval */
+      /* Initialize cnfine from cnfine0; set relate to EQUALS */
+      copy_c(&cnfine0,&cnfine);
       repmc_c("=","=","=",SHORTLEN,relate);
+
+
+      /****************************************************************/
+      /************* HERE'S THE BEEF **********************************/
+
+      /* Find time(s) at which incidence angle equals that in refval */
       gfilum_c( method, angtype, target, illmn, fixref, abcorr, obsrvr, spoint
               , relate, refval, adjust, step, nintvls, &cnfine, &result);
+
+      /****************************************************************/
+      /****************************************************************/
+
+      /* Handle error - go to next plate */
       if (failed_c()) {
         fprintf(stderr,"Failed glilum_c for row [%lld]\n", iRow+1);
-        break;
+        reset_c();
+        continue;
       }
+
+      /******************** TODO START ************************************/
+      /* If cardinality of result is zero, look for local minimum instead */
+      /******************** TODO END **************************************/
+
+      /* Log cardinality of result, plus first and last times */
       if (doDebug) {
-        fprintf(stdout,"gfilum_c found [%ld] solutions for facet [%lld]\n"
-               , (long)wncard_c(&result), iFacetNumber);
-      }
+      long wncard = wncard_c(&result);
+        fprintf(stdout,"gfilum_c found [%ld] solutions for facet [%lld]:  "
+               , wncard, iFacetNumber);
+        timout_c(SPICE_CELL_ELEM_D(&result, 0), "YYYY-MM-DD/HR:MN:SC.### ::TDB", SHORTLEN, sTDB);
+        fprintf(stdout,"first TDB=%s",sTDB);
+        if (wncard>1) {
+          timout_c(SPICE_CELL_ELEM_D(&result, (wncard<<1)-1), "YYYY-MM-DD/HR:MN:SC.### ::TDB", SHORTLEN, sTDB);
+          fprintf(stdout,"; last TDB=%s",sTDB);
+        }
+        fprintf(stdout,".\n");
+
+      } /* if (doDebug) */
     } /* for (iRow=...) */
 
     if (failed_c()) { break; }
