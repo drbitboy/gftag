@@ -209,13 +209,15 @@ pGFTRN pGftRn = 0;
       /* Log cardinality of result, plus first and last times */
       if (doDebug) {
       long wncard = wncard_c(&result);
-        fprintf(stdout,"gfilum_c found [%ld] solutions for facet [%lld]:  "
+        fprintf(stdout,"gfilum_c found [%ld] solutions for facet [%lld]"
                , wncard, iFacetNumber);
-        timout_c(SPICE_CELL_ELEM_D(&result, 0), "YYYY-MM-DD/HR:MN:SC.### ::TDB", SHORTLEN, sTDB);
-        fprintf(stdout,"first TDB=%s",sTDB);
-        if (wncard>1) {
-          timout_c(SPICE_CELL_ELEM_D(&result, (wncard<<1)-1), "YYYY-MM-DD/HR:MN:SC.### ::TDB", SHORTLEN, sTDB);
-          fprintf(stdout,"; last TDB=%s",sTDB);
+        if (wncard>0) {
+          timout_c(SPICE_CELL_ELEM_D(&result, 0), "YYYY-MM-DD/HR:MN:SC.### ::TDB", SHORTLEN, sTDB);
+          fprintf(stdout,":  first TDB=%s",sTDB);
+          if (wncard>1) {
+            timout_c(SPICE_CELL_ELEM_D(&result, (wncard<<1)-1), "YYYY-MM-DD/HR:MN:SC.### ::TDB", SHORTLEN, sTDB);
+            fprintf(stdout,"; last TDB=%s",sTDB);
+          }
         }
         fprintf(stdout,".\n");
 
