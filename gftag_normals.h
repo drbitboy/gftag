@@ -17,7 +17,7 @@ typedef struct {
 
 int gftag_normals_close(ppGFTRN ppGftRn);
 int gftag_normals_open(char* filename,ppGFTRN ppGftRn);
-int gftag_normals_next(pGFTRN pGftRn);
+int gftag_normals_next(pGFTRN pGftRn,LONGLONG* pIFacetNumber, double* vNormal);
 int gftag_normals_set_row(pGFTRN pGftRn,LONGLONG nextRow);
 LONGLONG gftag_normals_num_rows(pGFTRN pGftRn);
 
