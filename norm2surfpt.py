@@ -37,32 +37,38 @@ def norm2surfpt(semi_axes,inputNormal):
   ### - Vector N is unknown, and is not necessarily a unit vector
   ### - Argument inputNormal is parallel to N, and of arbitrary length
   ### - Unit vector parallel to N is n, calculated above from inputNormal
-  ### - Assume length of N is scalar k; k is initially unknown
+  ### - Assume length of N is scalar 1/k; k is initially unknown
   ### - Scaling unit normal, n, by k yields N:
   ###
-  ###     n*k = N = [x/(a*a), y/(b*b), z/(c*c)]      Eqn. 1
+  ###     n/k = N = [x/(a*a), y/(b*b), z/(c*c)]      Eqn. 1
   ###
   ### so
   ###
-  ###     nx*k = x/(a*a)                             Eqn. 2x
-  ###     ny*k = y/(b*b)                             Eqn. 2y
-  ###     nz*k = z/(c*c)                             Eqn. 2z
+  ###     nx/k = x/(a*a)                                    Eqn. 2x
+  ###     ny/k = y/(b*b)                                    Eqn. 2y
+  ###     nz/k = z/(c*c)                                    Eqn. 2z
   ###
   ### and, solving for surface point components, [x,y,z]:
   ###
-  ###     x = nx*a*a/k                               Eqn. 3x
-  ###     y = ny*b*b/k                               Eqn. 3y
-  ###     z = nz*c*c/k                               Eqn. 3z
+  ###     x = nx*a*a/k                                      Eqn. 3x
+  ###     y = ny*b*b/k                                      Eqn. 3y
+  ###     z = nz*c*c/k                                      Eqn. 3z
   ###
-  ### Substituting x, y, and z back into ellipsoid formula:
+  ### Substituting Eqns. 3x, 3y, and 3z for x, y, and z
+  ### back into the ellipsoid formula (x^2/a^2 + ... = 1):
   ###
-  ###     (nx*a*a/k)^2/(a*a) + (ny*b*b/k)^2/(b*b) + (nz*c*c/k)/(c*c) = 1
-  ###     - Eqn. 4
+  ###     (nx*a*a/k)^2/(a*a)
+  ###   + (ny*b*b/k)^2/(b*b)
+  ###   + (nz*c*c/k)^2/(c*c) = 1                            Eqn. 4
   ###
   ### and solving for k:
   ###
-  ###     (nx*a)^2 + (ny*b)^2 + (nz*c)^2 = k^2       Eqn. 5
+  ###     (nx*a)^2 + (ny*b)^2 + (nz*c)^2 = k^2              Eqn. 5
   ###
+  ### Since nx, a, ny, b, nz, and c are all known, k
+  ### can be calculated directly using Eqn. 5, and the
+  ### surface point components, x, y, and z, can then
+  ### be calculated using Eqns. 3x, 3y, and 3z.
 
   ### Calculate two vectors:
   ### - [a*a, b*b, c*c]
@@ -76,7 +82,9 @@ def norm2surfpt(semi_axes,inputNormal):
   k2 = sp.vdot(abcXabc,nXn)
   k = math.sqrt(k2)
 
-  ### Use k, abcXabc, n, and Eqn. 3 to calculate surface point vector xyz
+  ### Use k, abcXabc, n, and Eqns. 3x, 3y, and
+  ### 3z to calculate surface point vector xyz
+
   xyz=sp.vscl(1./k,vXv(abcXabc,n))
 
   ### Debug logging:
@@ -86,6 +94,7 @@ def norm2surfpt(semi_axes,inputNormal):
     pprint.pprint(dict(n=n,abc=abc,abcXabc=abcXabc,nXn=nXn,nMag=sp.vnorm(n),k=k,k2=k2,xyz=xyz,one=one))
 
   ### Return surface point 
+
   return xyz
 
 
