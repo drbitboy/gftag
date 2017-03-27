@@ -30,8 +30,39 @@ def norm2surfpt(semi_axes,inputNormal):
   ### Ensure abc components are positive
   abc = sp.vequ([abs(semi_axis) for semi_axis in semi_axes[:3]])
 
-  ### Normalize input normal
+  ### Get unit vector, n, parallel to input normal
   n = sp.vhat(inputNormal)
+
+  ### Direction of normal, N, at [x,y,z] is [ x/(a*a), y/(b*b), z/(c*c)]
+  ### - Vector N is unknown, and is not necessarily a unit vector
+  ### - Argument inputNormal is parallel to N, and of arbitrary length
+  ### - Unit vector parallel to N is n, calculated above from inputNormal
+  ### - Assume length of N is scalar k; k is initially unknown
+  ### - Scaling unit normal, n, by k yields N:
+  ###
+  ###     n*k = N = [x/(a*a), y/(b*b), z/(c*c)]      Eqn. 1
+  ###
+  ### so
+  ###
+  ###     nx*k = x/(a*a)                             Eqn. 2x
+  ###     ny*k = y/(b*b)                             Eqn. 2y
+  ###     nz*k = z/(c*c)                             Eqn. 2z
+  ###
+  ### and, solving for surface point components, [x,y,z]:
+  ###
+  ###     x = nx*a*a/k                               Eqn. 3x
+  ###     y = ny*b*b/k                               Eqn. 3y
+  ###     z = nz*c*c/k                               Eqn. 3z
+  ###
+  ### Substituting x, y, and z back into ellipsoid formula:
+  ###
+  ###     (nx*a*a/k)^2/(a*a) + (ny*b*b/k)^2/(b*b) + (nz*c*c/k)/(c*c) = 1
+  ###     - Eqn. 4
+  ###
+  ### and solving for k:
+  ###
+  ###     (nx*a)^2 + (ny*b)^2 + (nz*c)^2 = k^2       Eqn. 5
+  ###
 
   ### Calculate two vectors:
   ### - [a*a, b*b, c*c]
@@ -40,45 +71,21 @@ def norm2surfpt(semi_axes,inputNormal):
   abcXabc = vXv(abc,abc)
   nXn = vXv(n,n)
 
-  ### Direction of normal, N, at [x,y,z] is [ x/(a*a), y/(b*b), z/(c*c)]
-  ### - That vector is not necessarily a unit vector
-  ### - assume length of N is 1/k
-  ### - So scaling unit normal by 1/k will yield N:
-  ###     n/k = N = [x/(a*a), y/(b*b), z/(c*c)]
-  ###
-  ### so
-  ###
-  ###     nx*k = x/(a*a)
-  ###     ny*k = y/(b*b)
-  ###     nz*k = z/(c*c)
-  ###
-  ### and
-  ###
-  ###     x = nx*a*a/k
-  ###     y = ny*b*b/k
-  ###     z = nz*c*c/k
-  ###
-  ### Substituting back into ellipsoid formula:
-  ###
-  ###     (nx*a*a/k)^2/(a*a) + (ny*b*b/k)^2/(b*b) + (nz*c*c/k)/(c*c) = 1
-  ###
-  ### and Solving for k
-  ###
-  ###     (nx*a)^2 + (ny*b)^2 + (nz*c)^2 = k^2
-  ###
+  ### Solve for k using abcXabc, nXn, and Eqn. 5:
 
   k2 = sp.vdot(abcXabc,nXn)
   k = math.sqrt(k2)
 
-  ### Use k, abc and n to calculate surface point as vector xyz
+  ### Use k, abcXabc, n, and Eqn. 3 to calculate surface point vector xyz
   xyz=sp.vscl(1./k,vXv(abcXabc,n))
 
+  ### Debug logging:
   if doLog:
     ### Calculate (x/a)^2 + (y/b)^2 + (z/c)^2; it should be = 1
     one=sp.vdot(vXv(xyz,xyz),1/abcXabc)
     pprint.pprint(dict(n=n,abc=abc,abcXabc=abcXabc,nXn=nXn,nMag=sp.vnorm(n),k=k,k2=k2,xyz=xyz,one=one))
 
-  ### return surface point 
+  ### Return surface point 
   return xyz
 
 
@@ -93,9 +100,9 @@ def dooneRandom():
   ### Solve for surface point with that surface normal
   xyz = norm2surfpt(semi_axes,unitNormal)
 
-  ### Use spiceypy.surfnm and xyz to calculate surface unit normal vector,
-  ### at solved-for surface point vector xyz, to compare to input unit
-  ### normal vector, and calculate error magnitude, errMag
+  ### Use spiceypy.surfnm() to calculate surface unit normal vector, at
+  ### solved-for surface point vector xyz, to compare to input unit normal
+  ### vector, and calculate error magnitude, errMag
 
   surfnm=sp.surfnm(semi_axes[0],semi_axes[1],semi_axes[2],xyz)
   errVec=sp.vsub(surfnm,unitNormal)
