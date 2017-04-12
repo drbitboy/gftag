@@ -35,6 +35,7 @@ LONGLONG nRows;
 LONGLONG iRow;
 LONGLONG iFacetNumber;
 double dVNormal[3];
+double dUVSurfpt[3];
 
 SpiceInt targetId;
 SpiceInt nPool;
@@ -169,7 +170,7 @@ pGFTRN pGftRn = 0;
     for (iRow=0; iRow<nRows; ++iRow) {
 
       /* Initialize cnfine from cnfine0 */
-      if (gftag_normals_next(pGftRn,&iFacetNumber,dVNormal)) {
+      if (gftag_normals_next(pGftRn,&iFacetNumber,dVNormal,0,dUVSurfpt)) {
         fprintf(stderr,"Failed to get facet number or normal for row [%lld]\n", iRow+1);
         break;
       }

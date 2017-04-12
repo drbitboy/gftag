@@ -1,3 +1,4 @@
+#include <math.h>
 #include "gftag_normals.h"
 #if 0
 #define __GFTAG_NORMALS__
@@ -11,15 +12,16 @@ typedef struct {
   LONGLONG nRows;;
   LONGLONG nextRow;
   int status;
-  int iColXYZN[4];
+  int iColLLRXYZN[7];
   long iFacetNumber;
+  double vLatLonR[3];
   double vNormal[3];
 } GFTRN, *pGFTRN, **ppGFTRN;
 
 int gftag_normals_close(ppGFTRN ppGftRn);
 int gftag_normals_open(char* filename,ppGFTRN ppGftRn);
+int gftag_normals_next(pGFTRN pGftRn,LONGLONG* pIFacetNumber, double* vNormal, double* pLatLonR, double* pUvSurfpt);
 int gftag_normals_set_row(pGFTRN pGftRn,LONGLONG nextRow);
-int gftag_normals_next(pGFTRN pGftRn,LONGLONG* pIFacetNumber, double* pVNormal);
 LONGLONG gftag_normals_num_rows(pGFTRN pGftRn);
 
 #endif /* __GFTAG_NORMALS__ */
@@ -91,7 +93,7 @@ int gftag_normals_open(char* filename,ppGFTRN ppGftRn) {
 pGFTRN pGftRn;
 int rtn;
 int myRtn = 0;
-int iXYZN;
+int iLLRXYZN;
   /* Check input pointers */
   if (!filename) {
     fprintf(stderr,"\n--> Null filename passed to gftag_normals_open()\n\n");
@@ -124,26 +126,26 @@ int iXYZN;
   }
 
   /* Get column number for columns named NORMAL VECTOR_X/Y/Z and FACET NUMBER */
-  for (iXYZN=0; !rtn && iXYZN<4; ++iXYZN) {
-  static char* colnames[4] = { "NORMAL VECTOR_X", "NORMAL VECTOR_Y", "NORMAL VECTOR_Z", "FACET NUMBER" };
-    if ((rtn=fits_get_colnum(pGftRn->fptr,CASESEN,colnames[iXYZN],pGftRn->iColXYZN+iXYZN,&pGftRn->status))) {
+  for (iLLRXYZN=0; !rtn && iLLRXYZN<7; ++iLLRXYZN) {
+  static char* colnames[7] = { "NORMAL VECTOR_X", "NORMAL VECTOR_Y", "NORMAL VECTOR_Z", "LATITUDE", "LONGITUDE", "RADIUS", "FACET NUMBER" };
+    if ((rtn=fits_get_colnum(pGftRn->fptr,CASESEN,colnames[iLLRXYZN],pGftRn->iColLLRXYZN+iLLRXYZN,&pGftRn->status))) {
       fits_report_error(stderr,pGftRn->status);
-      fprintf(stderr,"\n--> Failed to get column number for [%s] in FITS file [%s] in gftag_normals_open()\n\n",colnames[iXYZN],filename);
-      myRtn = -6 - iXYZN;
+      fprintf(stderr,"\n--> Failed to get column number for [%s] in FITS file [%s] in gftag_normals_open()\n\n",colnames[iLLRXYZN],filename);
+      myRtn = -6 - iLLRXYZN;
     }
   }
 
   if (!rtn) {
     if ((rtn=gftag_normals_set_row(*ppGftRn,1LL))) {
       fprintf(stderr,"\n--> Failed to set row number to %lld in FITS file [%s] in gftag_normals_open()\n\n",1LL,filename);
-      myRtn = -10;
+      myRtn = -13;
     }
   }
 
   if (rtn) {
     if ((rtn=gftag_normals_close(ppGftRn))) {
       fprintf(stderr,"\n--> Failed to close FITS file [%s] in gftag_normals_open()\n\n",filename);
-      myRtn = -10;
+      myRtn = -14;
     }
   }
 
@@ -165,14 +167,14 @@ LONGLONG gftag_normals_num_rows(pGFTRN pGftRn) {
 /**********************************************************************/
 /* Get normal vector components and facet number from next row */
 int
-gftag_normals_next(pGFTRN pGftRn,LONGLONG* pIFacetNumber, double* pVNormal) {
+gftag_normals_next(pGFTRN pGftRn,LONGLONG* pIFacetNumber, double* pVNormal, double* pLatLonR, double* pUvSurfpt) {
 int rtn = 0;
 int myRtn = 0;
 const double nulval = -999.0;
 int anynul;
 
   do {
-  int iXYZN;
+  int iLLRXYZN;
   LONGLONG saveRow;
 
     if (!pGftRn) {
@@ -188,22 +190,24 @@ int anynul;
 
     saveRow = pGftRn->nextRow;
 
-    for (iXYZN=0; !myRtn && !rtn && iXYZN<4; ++iXYZN) {
-      if ((rtn=fits_read_col(pGftRn->fptr            /* filelist* fptr               */
-               , iXYZN<3 ? TDOUBLE : TLONGLONG       /* datatype                     */
-               , pGftRn->iColXYZN[iXYZN]             /* colnum                       */
-               , saveRow                             /* firstrow                     */
-               , 1LL, 1LL                            /* firstelem, nelements         */
-               , (void*) &nulval                     /* DTYPE* nulval                */
-               , iXYZN<3
-                 ? (void*) (pGftRn->vNormal+iXYZN)   /* DTYPE* array                 */
-                 : (void*) (&pGftRn->iFacetNumber)   /* DTYPE* array                 */
-               , &anynul                             /* anynul                       */
-               , &pGftRn->status                     /* firstrow                     */
+    for (iLLRXYZN=0; !myRtn && !rtn && iLLRXYZN<7; ++iLLRXYZN) {
+      if ((rtn=fits_read_col(pGftRn->fptr                     /* filelist* fptr       */
+               , iLLRXYZN<6 ? TDOUBLE : TLONGLONG             /* datatype             */
+               , pGftRn->iColLLRXYZN[iLLRXYZN]                /* colnum               */
+               , saveRow                                      /* firstrow             */
+               , 1LL, 1LL                                     /* firstelem, nelements */
+               , (void*) &nulval                              /* DTYPE* nulval        */
+               , iLLRXYZN<3
+                 ? (void*) (pGftRn->vNormal+iLLRXYZN)         /* DTYPE* array         */
+                 : iLLRXYZN<6                                 /* DTYPE* array         */
+                   ? (void*) (pGftRn->vLatLonR+(iLLRXYZN-3))  /* DTYPE* array         */
+                   : (void*) (&pGftRn->iFacetNumber)          /* DTYPE* array         */
+               , &anynul                                      /* anynul               */
+               , &pGftRn->status                              /* firstrow             */
                ))) {
         fits_report_error(stderr,pGftRn->status);
         fprintf(stderr,"--> fits_read_col() failed for column [%d] of row [%lld] in gftag_normals_next()\n\n"
-                      , pGftRn->iColXYZN[iXYZN], saveRow);
+                      , pGftRn->iColLLRXYZN[iLLRXYZN], saveRow);
         myRtn = -3;
       }
     }
@@ -212,6 +216,17 @@ int anynul;
       /* Copy successful results to non-null arguments */
       if (pIFacetNumber) { *pIFacetNumber = pGftRn->iFacetNumber; }
       if (pVNormal) { memcpy( pVNormal, pGftRn->vNormal, 3 * sizeof(double)); }
+      if (pLatLonR) { memcpy( pLatLonR, pGftRn->vLatLonR, 3 * sizeof(double)); }
+      if (pUvSurfpt) {
+      static double rpd = M_PI / 180.0;
+      double coslat = cos(pGftRn->vLatLonR[0] * rpd);
+      double sinlat = sin(pGftRn->vLatLonR[0] * rpd);
+      double coslon = cos(pGftRn->vLatLonR[1] * rpd);
+      double sinlon = sin(pGftRn->vLatLonR[1] * rpd);
+        pUvSurfpt[0] = coslat * coslon;
+        pUvSurfpt[1] = coslat * sinlon;
+        pUvSurfpt[2] = sinlat;
+      }
 
       /* Increment row */
       ++pGftRn->nextRow;
@@ -232,7 +247,9 @@ int rtn = 0;
   LONGLONG nRows;
   LONGLONG thisRow;
   LONGLONG thisFacetNumber;
-  double thisVector[3];
+  double normUVector[3];
+  double llrVector[3];
+  double surfptUVector[3];
     if (argc<2) {
       fprintf(stderr, "Usage:  %s normals_table.fit\n\n", argc>0 ? argv[0] : "test_gftag_normals");
       rtn = -1;
@@ -257,15 +274,22 @@ int rtn = 0;
       if (saveRow!=thisRow) {
         fprintf(stderr, "\n--> gftag_normals_test() failed with expected row mismatch (%lld!=%lld in FITS filename [%s]\n\n",saveRow,thisRow,argv[1]);
         rtn = -4;
-      } else  if ((rtn=gftag_normals_next(pGftRn,&thisFacetNumber,thisVector))) {
+      } else  if ((rtn=gftag_normals_next(pGftRn,&thisFacetNumber,normUVector,llrVector,surfptUVector))) {
         fprintf(stderr, "\n--> gftag_normals_next() failed for row [%lld] in FITS filename [%s]\n\n",pGftRn->nextRow,argv[1]);
         rtn = -5 - (thisRow==1 ? 0 : 1) ;
       } else {
-        fprintf(stdout, "%s row of %s:  facet number = %10lld; normal vector = [%10.6lf %10.6lf %10.6lf]\n"
-                      , thisRow==1 ? "First" : " Last"
+        fprintf(stdout, "\n%s row of %s:\n\
+        facet number =  %10lld\n\
+       normal vector = [%10.6lf %10.6lf %10.6lf]\n\
+    Lat,ELong,Radius = [%10.5lf %10.5lf %10.5lf]\n\
+  surfpt unit vector = [%10.6lf %10.6lf %10.6lf]\n\
+"
+                      , thisRow==1 ? "First" : "Last"
                       , argv[1]
                       , thisFacetNumber
-                      , thisVector[0], thisVector[1], thisVector[2]
+                      , normUVector[0], normUVector[1], normUVector[2]
+                      , llrVector[0], llrVector[1], llrVector[2]
+                      , surfptUVector[0], surfptUVector[1], surfptUVector[2]
                       );
         if ((rtn=gftag_normals_set_row(pGftRn,saveRow + (nRows-1)))) {
           fprintf(stderr, "\n--> gftag_normals_set_row() failed for row [%lld] in FITS filename [%s]\n\n",saveRow+(nRows-1),argv[1]);
