@@ -1,9 +1,10 @@
 #ifndef __GFTAG_NORMALS__
 #define __GFTAG_NORMALS__
-#include <string.h>
+#include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
-#include "fitsio.h"
+#include <fitsio.h>
 
 typedef struct {
   fitsfile *fptr;
